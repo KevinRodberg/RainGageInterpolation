@@ -84,6 +84,13 @@ setwd(WMDbnd.Path)
 WMDbnd <- readShapePoly(WMDbnd.Shape, proj4string = HARNSP17ft)
 
 #-------------------------------------------------
+# Read Model grid shapefile
+#-------------------------------------------------
+#LWCSIMgrd.Path <- "//ad.sfwmd.gov/dfsroot/data/wsd/PLN/Felipe/NEXRAD/Weekly_Exe/LWC/LWC_NRD_Data/Model_shapefiles"
+#LWCSIM.Shape <- "LWCSIM_Model_Grid.shp"
+#setwd(LWCSIMgrd.Path)
+#LWCSIMgrd <- readShapePoly(LWCSIM.Shape, proj4string = HARNSP17ft)
+#-------------------------------------------------
 # Calculate raster extents
 #-------------------------------------------------
 xmin = floor(min(PixelCoords[c('X')]))
@@ -129,8 +136,8 @@ dayBiasFn <- function(DailyNRD,biasRas){
 # Creating CSV files with NRDstat, biasNRD and 
 # updates NRD with annual totals
 #-------------------------------------------------
-biasByYear <-function(year,RvsG){
-  LWC_NRDbyYr <- read.csv(paste0(basePAth, "LWC_NRD", year, ".csv"))
+biasByYear <-function(yearStr,RvsG){
+  LWC_NRDbyYr <- read.csv(paste0(basePAth, "LWC_NRD", yearStr, ".csv"))
   dateList<-names(LWC_NRDbyYr)[-c(1,2,3)]
   NRDbyYr <- melt(LWC_NRDbyYr, id = c("Pixel_id", "X", "Y"))
 
@@ -188,7 +195,7 @@ biasByYear <-function(year,RvsG){
   #-------------------------------------------------
   # Export Stats to csv files by year
   #-------------------------------------------------
-  csvFile <- paste0(basePAth, paste0("newNRDstats",year,".csv"))
+  csvFile <- paste0(basePAth, paste0("newNRDstats",yearStr,".csv"))
   fwrite(na.omit(combineData), csvFile)
   
   #-------------------------------------------------
@@ -258,8 +265,8 @@ biasByYear <-function(year,RvsG){
   # Add final column for annual total NRD with Bias correction
   # and export to csv
   #-------------------------------------------------
-  NRDbiasPixels$Annual<-rowSums(NRDbiasPixels[,-c(1,2,3)])
-  csvFile <- paste0(basePAth, paste0("biasNRD",year,".csv"))
+  NRDbiasPixels$Annual<-rowSums(NRDbiasPixels[,-c(1,2,3)],na.rm=TRUE)
+  csvFile <- paste0(basePAth, paste0("biasNRD",yearStr,".csv"))
   fwrite(NRDbiasPixels, csvFile) 
   
   #-------------------------------------------------
@@ -274,8 +281,8 @@ biasByYear <-function(year,RvsG){
   # Add final column for annual total NRD
   # and export to csv
   #-------------------------------------------------
-  LWC_NRDbyYr$Annual<-rowSums(LWC_NRDbyYr[,-c(1,2,3)])
-  csvFile <- paste0(basePAth, paste0("NRD",year,".csv"))
+  LWC_NRDbyYr$Annual<-rowSums(LWC_NRDbyYr[,-c(1,2,3)],na.rm=TRUE)
+  csvFile <- paste0(basePAth, paste0("NRD",yearStr,".csv"))
   fwrite(LWC_NRDbyYr, csvFile) 
   
   #-------------------------------------------------
@@ -301,6 +308,7 @@ plan(multiprocess)
 processed= listenv(NULL)
 yrList=list()
 
+yearStr <- as.character(1999)
 #-------------------------------------------------
 # Define range of years to process
 #-------------------------------------------------
@@ -308,22 +316,22 @@ processYears <- seq(1999, 2016)
 x=0
 
 for (yr in processYears) {
-  year <- as.character(yr)
+  yearStr <- as.character(yr)
   x=x+1
   #---------------------------
   # Compare NexRad vs RainGage
   #---------------------------
-  startDay = as.Date(paste0("01/01/",year), "%m/%d/%Y")
-  endDay = as.Date(paste0("12/31/",year), "%m/%d/%Y")
+  startDay = as.Date(paste0("01/01/",yearStr), "%m/%d/%Y")
+  endDay = as.Date(paste0("12/31/",yearStr), "%m/%d/%Y")
   RvsG <- as.data.frame(LWCNRDvsGage99to16[LWCNRDvsGage99to16$Rainfall < 20 &
                                              as.Date(LWCNRDvsGage99to16$DailyDate) >= startDay &
                                              as.Date(LWCNRDvsGage99to16$DailyDate) <= endDay, ])
-  cat (paste(year,"\n"))
+  cat (paste(yearStr,"\n"))
   #-------------------------------------------------
   # Call FUNCTION "biasByYear" with futures multiprocessing
   # wrapper function
   #-------------------------------------------------
-  processed[[x]] <- future({biasByYear(year,RvsG)})
+  processed[[x]] <- future({biasByYear(yearStr,RvsG)})
 }
 
 mpList<-list()
