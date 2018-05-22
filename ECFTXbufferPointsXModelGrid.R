@@ -1,4 +1,3 @@
-
 library(reshape2)
 library(readr)
 library(dplyr)
@@ -7,9 +6,10 @@ library(readxl)
 library(rgeos)
 library(sp)
 library(maptools)
+library(rgdal)
 library(sf)
 library(FNN)
-
+library(raster)
 
 #basePAth <-  "//ad.sfwmd.gov/dfsroot/data/wsd/PLN/Felipe/NEXRAD/Weekly_Exe/LWC/LWC_NRD_Data/"
 basePath <- "//whqhpc01p/hpcc_shared/krodberg/NexRadTS/"
@@ -47,11 +47,15 @@ PixelPoints<-SpatialPointsDataFrame(coords = PixelCoords[, c("X", "Y")],
 
 Modelgrd.Path <- "//ad.sfwmd.gov/dfsroot/data/wsd/GIS/GISP_2012/DistrictAreaProj/CFWI/Data/From_SW_SJ"
 Model.Shape <-"ECFTX_GRID_V3.shp"
+Model.Shape.proj <-"ECFTX_GRID_V3"
 setwd(Modelgrd.Path)
-#Modelgrd <- readShapePoly(Model.Shape, proj4string = HARNSP17ft)
-Modelgrd <- readShapePoly(Model.Shape, proj4string = HARNUTM17Nm)
+
+Modelgrd <- readOGR(Modelgrd.Path,Model.Shape.proj)
 gridCentroids <-gCentroid(Modelgrd,byid=TRUE)
-gridCentroids <-spTransform(gridCentroids,HARNSP17ft)
+print(proj4string(Modelgrd))
+if (!compareCRS(HARNSP17ft,proj4string(Modelgrd))) {
+  gridCentroids <-spTransform(gridCentroids,HARNSP17ft)
+  }
 #-------------------------------------------------
 # Convert Pixel shapefile to dataframe
 #-------------------------------------------------
@@ -75,11 +79,10 @@ ModelGridCoords <-cbind(Modelgrd$Row, Modelgrd$Column_,ModelGridCoords)
 #   x2 = cbind(runif(10),runif(10))
 #   nn = get.knnx(x1,x2,1)
 #-------------------------------------------------
-# returns index and sistance of x1 closest to x2
+# returns index and distance of x1 closest to x2
 #-------------------------------------------------
 #   nn[["nn.index"]]
 #   nn[["nn.dist"]]
-
 
 #-------------------------------------------------
 # Find closest points
