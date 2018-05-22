@@ -121,8 +121,8 @@ clpBnds2 <- gClip(WMDbnd, rasExt)
 dayBiasFn <- function(DailyNRD,biasRas){
   DailyNRD.pnts <-SpatialPointsDataFrame(coords = DailyNRD[, c("X", "Y")],
                                          data = DailyNRD,proj4string = HARNSP17ft)
-  NRDras <-rasterize(DailyNRD.pnts, ras, DailyNRD.pnts$value, fun = max) * biasRas
-  NRDBiasPnts <- extract(NRDras,DailyNRD.pnts,fun=max,df=TRUE)
+  NRDras <-rasterize(DailyNRD.pnts, ras, DailyNRD.pnts$value, fun = mean) * biasRas
+  NRDBiasPnts <- extract(NRDras,DailyNRD.pnts,fun=mean,df=TRUE)
   NRDBiasPnts$Pixel_id <- DailyNRD.pnts$Pixel_id
   NRDBiasPnts$X<-DailyNRD.pnts$X
   NRDBiasPnts$Y<-DailyNRD.pnts$Y
@@ -206,7 +206,7 @@ biasByYear <-function(yearStr,RvsG){
     DailyNRD.pnts <-SpatialPointsDataFrame(coords = DailyNRD[, c("X", "Y")],
                                            data = DailyNRD,proj4string = HARNSP17ft)
     
-    NRDras <-rasterize(DailyNRD.pnts, ras, DailyNRD.pnts$value, fun = max) 
+    NRDras <-rasterize(DailyNRD.pnts, ras, DailyNRD.pnts$value, fun = mean) 
     NRDBiasPnts <- data.frame(extract(NRDras,DailyNRD.pnts))
     DailyNRD.grid <- as(NRDras, "SpatialGridDataFrame")
   }
@@ -228,7 +228,7 @@ biasByYear <-function(yearStr,RvsG){
     SpatialPointsDataFrame(coords = combineData[, c("XCOORD", "YCOORD")],
                            data = combineData,proj4string = HARNSP17ft)
   
-  NRDras <- rasterize(DailyNRD.pnts, ras, DailyNRD.pnts$value, fun = max)
+  NRDras <- rasterize(DailyNRD.pnts, ras, DailyNRD.pnts$value, fun = mean)
   
   #-------------------------------------------------
   #  Theisen Polygon and raster code:
