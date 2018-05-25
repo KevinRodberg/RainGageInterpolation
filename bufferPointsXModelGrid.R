@@ -14,8 +14,9 @@ readPoints <- function(csvfile){
   #  data frame
   #-------------------------------------------------
   NRD <- utils::read.csv(csvFile)
-  NRD <- stats::na.omit(data.table::melt(NRD, id = c("Pixel_id", "X", "Y")))
-  PixelCoords <- NRD[c("Pixel_id", "X", "Y")]
+  #NRD <- stats::na.omit(data.table::melt(NRD, id = c("Pixel_id", "X", "Y")))
+  NRDsub <- NRD[!NRD[,length(NRD)]==0,]
+  PixelCoords <- NRDsub[c("Pixel_id", "X", "Y")]
   return(PixelCoords)
 }
 
@@ -77,9 +78,12 @@ f <- future({readPoints(csvFile)})
 # using a background process  
 # - readgridPoints() runs async to readPoints()
 #-------------------------------------------------
+#Modelgrd.Path <- 
+#  "//ad.sfwmd.gov/dfsroot/data/wsd/GIS/GISP_2012/DistrictAreaProj/CFWI/Data/From_SW_SJ"
 Modelgrd.Path <- 
-  "//ad.sfwmd.gov/dfsroot/data/wsd/GIS/GISP_2012/DistrictAreaProj/CFWI/Data/From_SW_SJ"
-Model.Shape <-"ECFTX_GRID_V3"
+  "//ad.sfwmd.gov/dfsroot/data/wsd/PLN/Felipe/NEXRAD/Weekly_Exe/LWC/LWC_NRD_Data/Model_shapefiles"
+#Model.Shape <-"ECFTX_GRID_V3"
+Model.Shape <-"LWCSIM_Model_Grid"
 setwd(Modelgrd.Path)
 
 cat(paste('":" indicates Progress Reading Model shapefile',Model.Shape,'\n'))
