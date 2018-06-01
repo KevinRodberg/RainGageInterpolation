@@ -29,6 +29,8 @@ readgridPoints<- function(Modelgrd.Path,Model.Shape){
   #  -Convert point coordinates into a data frame
   #-------------------------------------------------
   Modelgrd %<-% rgdal::readOGR(Modelgrd.Path,Model.Shape)
+  modCol <- grep("^col$",colnames(Modelgrd@data),ignore.case=T)
+  modRow <- grep("^row$",colnames(Modelgrd@data),ignore.case=T)
   gridCentroids <- rgeos::gCentroid(Modelgrd,byid=TRUE)
   print(sp::proj4string(Modelgrd))
   if (!raster::compareCRS(HARNSP17ft,sp::proj4string(Modelgrd))) {
@@ -38,7 +40,7 @@ readgridPoints<- function(Modelgrd.Path,Model.Shape){
   # Convert model cell points to a dataframe
   asSFGC <- sf::st_as_sf(gridCentroids)
   ModelGridCoords <- do.call(base::rbind,sf::st_geometry(asSFGC))
-  ModelGridCoords <-base::cbind(Modelgrd$Row, Modelgrd$Column_,ModelGridCoords)
+  ModelGridCoords <-base::cbind(Modelgrd@data[,modRow], Modelgrd@data[,modCol],ModelGridCoords)
   
   return(ModelGridCoords)
 }
@@ -78,13 +80,17 @@ f <- future({readPoints(csvFile)})
 # using a background process  
 # - readgridPoints() runs async to readPoints()
 #-------------------------------------------------
-#Modelgrd.Path <- 
-#  "//ad.sfwmd.gov/dfsroot/data/wsd/GIS/GISP_2012/DistrictAreaProj/CFWI/Data/From_SW_SJ"
-Modelgrd.Path <- 
-  "//ad.sfwmd.gov/dfsroot/data/wsd/PLN/Felipe/NEXRAD/Weekly_Exe/LWC/LWC_NRD_Data/Model_shapefiles"
-#Model.Shape <-"ECFTX_GRID_V3"
-Model.Shape <-"LWCSIM_Model_Grid"
-setwd(Modelgrd.Path)
+if (model ='LWCSIM'){
+  Modelgrd.Path <- 
+    "//ad.sfwmd.gov/dfsroot/data/wsd/GIS/GISP_2012/DistrictAreaProj/CFWI/Data/From_SW_SJ"
+  Model.Shape <-"ECFTX_GRID_V3"
+} else {
+  Modelgrd.Path <- 
+    "//ad.sfwmd.gov/dfsroot/data/wsd/PLN/Felipe/NEXRAD/Weekly_Exe/LWC/LWC_NRD_Data/Model_shapefiles"
+  Model.Shape <-"LWCSIM_Model_Grid"
+  
+}
+  setwd(Modelgrd.Path)
 
 cat(paste('":" indicates Progress Reading Model shapefile',Model.Shape,'\n'))
 g <- future({readgridPoints(Modelgrd.Path,Model.Shape)})
