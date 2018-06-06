@@ -11,7 +11,7 @@
 # 
 # Current configuration has been set up and tested for 2003.
 #
-#->>> Not there are some missing pixels from input NexRad data.   <<<<<<<<<<<
+#->>> Note there are some missing pixels from input NexRad data.   <<<<<<<<<<<
 #
 #   These haven't been accounted for.
 #
@@ -37,21 +37,16 @@ if (length(new.packages))
   install.packages(new.packages)
 
 library(reshape2)
-#library(readr)
 library(dplyr)
 library(data.table)
-#library(readxl)
 library(rgeos)
 library(sp)
-#library(dismo)
 library(lattice)
 library(rasterVis)
 library(maptools)
 library(raster)
-#library(fields)
 library(automap)
 library(latticeExtra)
-#library(gstat)
 library(future)
 library(listenv)
 
