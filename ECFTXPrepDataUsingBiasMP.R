@@ -88,6 +88,11 @@ gClip <- function(shp, bb) {
   gIntersection(shp, b_poly, byid = T)
 }
 
+fixDecimals <- function(DF,decPlaces){
+  is.num <-sapply(DF,is.numeric)
+  DF[is.num] <- lapply(DF[is.num], round,decPlaces)
+  return(DF)
+}
 WMDbnd.Path <- "//whqhpc01p/hpcc_shared/krodberg/NexRadTS"
 WMDbnd.Shape <- "CntyBnds.shp"
 setwd(WMDbnd.Path)
@@ -147,9 +152,14 @@ dayBiasFn <- function(DailyNRD,biasRas){
 #-------------------------------------------------
 yearStr = '2003'
 biasByYear <-function(yearStr,RvsG){
-  ECFTX_NRDbyYr <- read.csv(paste0(basePath, "nr", yearStr, ".csv"))
+  # Read daily NexRad data files for each year
+  # ECFTX_NRDbyYr <- read.csv(paste0(basePath, "nr", yearStr, ".csv"))
+  basePath <- '//ad.sfwmd.gov/dfsroot/data/wsd/PLN/Felipe/NEXRAD/ECFTX/ECFTX_NRD_Data/'
+  ECFTX_NRDbyYr <- read.csv(paste0(basePath, "NRD_ECFTX_", yearStr, ".csv"))
+  
+#  justPixels <-ECFTX_NRDbyYr[, -which(names(ECFTX_NRDbyYr) %in% c("SEQNUM","Row","Column_","ROWCOL"))]
   justPixels <-ECFTX_NRDbyYr[, -which(names(ECFTX_NRDbyYr) 
-                                %in% c("SEQNUM","Row","Column_","ROWCOL"))]
+                                      %in% c("Latitude","Longitude"))]  
   uniquePixels <- justPixels[!duplicated(justPixels[1:2]),]
   names(uniquePixels)
   dateList<-names(uniquePixels)[-c(1,2)]
@@ -165,24 +175,29 @@ biasByYear <-function(yearStr,RvsG){
 #  RvsG[c("biasNRD")] <- NA
 #  RainStats <- NULL
 #  stationList = unique(RvsG$RainGage)
-  RGpath <- paste0("//ad.sfwmd.gov/dfsRoot/data/wsd/GIS/GISP_2012/DistrictAreaProj/",
-                   "CFWI/Data/RainGageVsNexRad/"  )
-  RGfile <-"AdjFact_2003.csv"
+#  RGpath <- paste0("//ad.sfwmd.gov/dfsRoot/data/wsd/GIS/GISP_2012/DistrictAreaProj/",
+#                   "CFWI/Data/RainGageVsNexRad/"  )
+#  RGfile <-"AdjFact_2003.csv"
+  
+  RGpath <- paste0("//ad.sfwmd.gov/dfsroot/data/wsd/PLN/Felipe/NEXRAD/",
+                    "ECFTX/ECFTX_NRD_Data/New_folder/")
+  RGfile <-"All_selected_adj_fact.csv"
   RGfilepath <-paste0(RGpath,RGfile)
-  #  RGdata <- read.csv(paste0(basePath, "nr", yearStr, ".csv"))
   RGdata <- read.csv(RGfilepath)
   names(RGdata)
   stationList = unique(RGdata$RGAGE_ID)
   
-  NRDwCoords<-inner_join(NRDpixels,uniquePixels, by= c("PixelID"= "Pixel"))
-
+#  NRDwCoords<-inner_join(NRDpixels,uniquePixels, by= c("PixelID"= "Pixel"))
+  NRDwCoords<-inner_join(NRDpixels,uniquePixels, by= c("PixelID"= "PIXEL_ID"))
+  
   names(NRDwCoords)
-  NRDbyYr <- melt(NRDwCoords, id = c("X", "PixelID", "Latitude", "Longitude", "WMD","District"))
+  NRDbyYr <- melt(NRDwCoords, id = c("X", "PixelID", "Latitude", "Longitude", "WMD.x","WMD.y"))
   NRDbyYr$X <-NULL
-  NRDbyYr$District <-NULL
+  NRDbyYr$WMD.y <-NULL
   
   #-------------------------------------------------
-  # read and organize daily NexRad data
+  # read and organize daily NexRad data using day 1
+  # actual daily processing is done with dayBiasFn
   #-------------------------------------------------
   for (d in dateList[1]) {
     DailyNRD <- NRDbyYr[NRDbyYr$variable == d, ]
@@ -192,9 +207,11 @@ biasByYear <-function(yearStr,RvsG){
                                            proj4string = CRS("+proj=longlat +datum=WGS84"))
     
     DailyNRD.pnts <- spTransform(DailyNRD.pnts,HARNSP17ft)
+    # NRDras will be used as a raster data structure raterize functions
     NRDras <-rasterize(DailyNRD.pnts, ras, DailyNRD.pnts$value, fun = mean) 
-    plot(NRDras)
+    # plot(NRDras)
     NRDBiasPnts <- data.frame(extract(NRDras,DailyNRD.pnts))
+    # DailyNRD.grid will be used as a data structure for kriging output
     DailyNRD.grid <- as(NRDras, "SpatialGridDataFrame")
   }
   NRDPixel<- data.frame(DailyNRD.pnts$PixelID,DailyNRD.pnts$Longitude,DailyNRD.pnts$Latitude)
@@ -203,21 +220,22 @@ biasByYear <-function(yearStr,RvsG){
   # Interpolate Bias from RainGages to NexRad pixels
   # Make NRD data correction using Bias
   #-------------------------------------------------
-#  biasData <- na.omit(combineData[, c("XCOORD", "YCOORD", "bias")])
+  #  biasData <- na.omit(combineData[, c("XCOORD", "YCOORD", "bias")])
   biasData <- na.omit(RGdata[, c("X", "Y", "ADJ_FACT")])
   
   coordinates(biasData) =  ~ X + Y
-  proj4string(biasData) = HARNUTM17Nm
+#  proj4string(biasData) = HARNUTM17Nm
+  proj4string(biasData) = HARNSP17ft
   
   biasData$XCOORD <- coordinates(biasData)[, 1]
   biasData$YCOORD <- coordinates(biasData)[, 2]
-  biasData <- spTransform(biasData,HARNSP17ft)
+#  biasData <- spTransform(biasData,HARNSP17ft)
   names(biasData)
   rainGage.pnts <-
     SpatialPointsDataFrame(coords = RGdata[, c("X", "Y")],
                            data = RGdata,proj4string = HARNUTM17Nm)
   rainGage.pnts <-spTransform(rainGage.pnts,HARNSP17ft)
-  NRDras <- rasterize(DailyNRD.pnts, ras, DailyNRD.pnts$value, fun = mean)
+  # NRDras <- rasterize(DailyNRD.pnts, ras, DailyNRD.pnts$value, fun = mean)
   #-------------------------------------------------
   #  Theisen Polygon and raster code:
   # theisPoly <- voronoi(rainGage.pnts)
@@ -229,6 +247,7 @@ biasByYear <-function(yearStr,RvsG){
   #  autoKrige implemented for Ordinary kriging
   #-------------------------------------------------
   surf <- autoKrige(formula=ADJ_FACT ~ 1, input_data=biasData, new_data = DailyNRD.grid)
+  test<- as.data.frame(biasData)
   biasRas <- raster(surf$krige_output)
   plot(biasRas)
   #-------------------------------------------------
@@ -254,6 +273,9 @@ biasByYear <-function(yearStr,RvsG){
   # and export to csv
   #-------------------------------------------------
   NRDbiasPixels$Annual<-rowSums(NRDbiasPixels[,-c(1,2,3)],na.rm=TRUE)
+
+  NRDbiasPixels <- fixDecimals(NRDbiasPixels,4)
+  head(NRDbiasPixels)
   csvFile <- paste0(basePath, paste0("biasNRD",yearStr,".csv"))
   fwrite(NRDbiasPixels, csvFile) 
   
@@ -273,6 +295,10 @@ biasByYear <-function(yearStr,RvsG){
 
   NRDwCoords$Annual<-rowSums(NRDwCoords[,-c(1,2,3,4,5,6)],na.rm=TRUE)
   csvFile <- paste0(basePath, paste0("NRD",yearStr,".csv"))
+  head(NRDwCoords)
+  NRDwCoords <- fixDecimals(NRDwCoords,4)
+  head(NRDwCoords)
+  
   fwrite(NRDwCoords, csvFile) 
   
   #-------------------------------------------------
@@ -307,7 +333,8 @@ yearStr <- as.character(2003)
 # Define range of years to process
 #-------------------------------------------------
 #processYears <- seq(1999, 2016)
-processYears <- seq(2003, 2003)
+processYears <- seq(2004, 2014)
+#processYears <- seq(2003, 2003)
 x=0
 
 for (yr in processYears) {
